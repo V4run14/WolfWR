@@ -1,4 +1,4 @@
-package Proj;
+package WolfWR;
 
 public class UserSession {
     private final String name;

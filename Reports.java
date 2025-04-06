@@ -1,4 +1,4 @@
-package Proj;
+package WolfWR;
 import java.sql.*;
 import java.util.Scanner;
 

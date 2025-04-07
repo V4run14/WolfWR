@@ -42,7 +42,7 @@ public class Reports {
         }
     }
 
-    private static UserSession login(Scanner scanner) {
+    public static UserSession login(Scanner scanner) {
         System.out.print("Enter Staff Email: ");
         String inputEmail = scanner.nextLine();
 

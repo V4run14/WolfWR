@@ -3,23 +3,23 @@ import java.sql.*;
 import java.util.Scanner;
 
 public class Reports {
-
-    private static final String jdbcURL = "jdbc:mariadb://classdb2.csc.ncsu.edu:3306/vvarath"; // Using SERVICE_NAME
-    private static final String user = "vvarath";
-    private static final String password = "dbmsproj2025";
+    //DB Credentials
+    private static final String jdbcURL = "jdbc:mariadb://classdb2.csc.ncsu.edu:3306/btsima"; // Using SERVICE_NAME
+    private static final String user = "btsima";
+    private static final String password = "mypwis54321";
 
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
-
+        //Menu based CLI
         while (true) {
-            UserSession session = login(scanner);
+            UserSession session = login(scanner); //Returns Name, JobTitle and StoreID of Employee logged in
 
             if (session != null) {
                 showMenu(scanner, session);
             }
         }
     }
-
+    //Methods for closing db connection
     static void close(Connection connection) {
         if(connection != null) {
             try {
@@ -41,7 +41,7 @@ public class Reports {
             } catch(Throwable whatever) {}
         }
     }
-
+    //Method that returns Name, JobTitle and StoreID of Employee logged in
     public static UserSession login(Scanner scanner) {
         System.out.print("Enter Staff Email: ");
         String inputEmail = scanner.nextLine();
@@ -82,7 +82,7 @@ public class Reports {
             close(connection);
         }
     }
-
+    //Menu method with choices for each type of report generation
     private static void showMenu(Scanner scanner, UserSession session) {
         while (true) {
             System.out.println("\n=== MENU ===");
@@ -124,6 +124,7 @@ public class Reports {
 
     private static void generateSalesReport(Scanner scanner, UserSession session) {
         String position = session.getJobTitle();
+        //Access control condition
         if (position.equals("Cashier") || position.equals("Registration Office Operator") || position.equals("Warehouse Operator")){
             System.out.println("You do not have access to this report!");
             return;
@@ -140,20 +141,20 @@ public class Reports {
         System.out.println();
 
         String query = "";
-
+        //By Day
         if (choice == 1) {
             query = "SELECT Date, SUM(TotalPrice) AS Total_Sales " +
                     "FROM TransactionRecords " +
                     "WHERE Type = 'Buy' " +
                     "GROUP BY Date " +
                     "ORDER BY Date;";
-        } else if (choice == 2) {
+        } else if (choice == 2) {      //By Month
             query = "SELECT DATE_FORMAT(Date, '%Y-%m') AS Month, SUM(TotalPrice) AS Total_Sales " +
                     "FROM TransactionRecords " +
                     "WHERE Type = 'Buy' " +
                     "GROUP BY Month " +
                     "ORDER BY Month;";
-        } else if (choice == 3) {
+        } else if (choice == 3) {       //By Year
             query = "SELECT YEAR(Date) AS Year, SUM(TotalPrice) AS Total_Sales " +
                     "FROM TransactionRecords " +
                     "WHERE Type = 'Buy' " +
@@ -213,11 +214,12 @@ public class Reports {
 
     private static void generateGrowthSalesReport(Scanner scanner, UserSession session) {
         String position = session.getJobTitle();
+        //Access control condition for staff
         if (position.equals("Cashier") || position.equals("Registration Office Operator") || position.equals("Warehouse Operator")){
             System.out.println("You do not have access to this report!");
             return;
         }
-
+        //Start and end dates for Sales Growth
         System.out.print("Enter start date (YYYY-MM-DD): ");
         String startDate = scanner.next();
 
@@ -291,6 +293,7 @@ public class Reports {
     private static void generateMerchandiseStockReport(Scanner scanner, UserSession session) {
 
         String position = session.getJobTitle();
+        //Access Control Condition for Staff
         if (position.equals("Cashier") || position.equals("Billing Staff") || position.equals("Registration Office Operatorw")){
             System.out.println("You do not have access to this report!");
             return;
@@ -379,6 +382,7 @@ public class Reports {
     private static void generateCustomerGrowthReport(Scanner scanner, UserSession session) {
 
         String position = session.getJobTitle();
+        //Access Control Condition for Staff
         if (position.equals("Cashier") || position.equals("Billing Staff") || position.equals("Warehouse Operator")){
             System.out.println("You do not have access to this report!");
             return;
@@ -476,6 +480,7 @@ public class Reports {
     private static void generateCustomerActivityReport(Scanner scanner, UserSession session) {
 
         String position = session.getJobTitle();
+        //Access Control Condition for Staff
         if (position.equals("Cashier") || position.equals("Billing Staff") || position.equals("Warehouse Operator")){
             System.out.println("You do not have access to this report!");
             return;

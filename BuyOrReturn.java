@@ -1,5 +1,3 @@
-//Still pending testing
-
 package WolfWR;
 
 import java.sql.*;
@@ -7,7 +5,7 @@ import java.time.LocalDate;
 import java.util.*;
 
 public class BuyOrReturn {
-
+    //DB Credentials
     private static final String jdbcURL = "jdbc:mariadb://classdb2.csc.ncsu.edu:3306/vvarath";
     private static final String user = "vvarath";
     private static final String password = "dbmsproj2025";
@@ -16,7 +14,7 @@ public class BuyOrReturn {
         Scanner scanner = new Scanner(System.in);
         UserSession session = Reports.login(scanner);
         if (session == null) return;
-
+        //Menu Based CLI
         while (true) {
             System.out.println("\nChoose an option:");
             System.out.println("1. Buy Items");
@@ -28,10 +26,10 @@ public class BuyOrReturn {
 
             switch (choice) {
                 case 1:
-                    handleBuy(scanner, session);
+                    handleBuy(scanner, session);      //Method to handle Buying of items (Cashier Role)
                     break;
                 case 2:
-                    handleReturn(scanner, session);
+                    handleReturn(scanner, session);     //Method to handle Returning of items (Warehouse Op Role)
                     break;
                 case 3:
                     return;
@@ -43,15 +41,18 @@ public class BuyOrReturn {
 
     private static void handleBuy(Scanner scanner, UserSession session) {
         String position = session.getJobTitle();
+        //Access Control Condition for Staff
         if (position.equals("Billing Staff") || position.equals("Registration Office Operator") || position.equals("Warehouse Operator") || position.equals("Manager") || position.equals("Assistant Manager")){
             System.out.println("You do not have access to this functionality!");
             return;
         }
-        try (Connection conn = DriverManager.getConnection(jdbcURL, user, password)) {
-            conn.setAutoCommit(false);
 
+        Connection conn = null;
+        try {
+            conn = DriverManager.getConnection(jdbcURL, user, password);
+            conn.setAutoCommit(false);         //Begin Transaction
             System.out.print("Do you want to enter your own Transaction ID? (yes/no): ");
-            String input = scanner.nextLine().trim().toLowerCase();
+            String input = scanner.nextLine().trim().toLowerCase(); //Explicit TransactionID choice to override autoincrement
 
             int transactionId;
             if (input.equals("yes")) {
@@ -82,27 +83,27 @@ public class BuyOrReturn {
             int customerId = scanner.nextInt();
             scanner.nextLine();
 
-            if (!checkCustomerExists(conn, customerId)) {
-                conn.rollback();
+            if (!checkCustomerExists(conn, customerId)) {   //Checking if entered CustId exists in db
+                conn.rollback();    //if cust doesnt exist, trans is rolled back
                 System.out.println("Error: Customer ID does not exist.");
                 return;
             }
 
-            if (!checkProductsExist(conn, productIds)) {
-                conn.rollback();
+            if (!checkProductsExist(conn, productIds)) {    //Checking if ProductIds exist in DB
+                conn.rollback();    //if products are invalid, trans is rolled back
                 System.out.println("Error: One or more Product IDs do not exist.");
                 return;
             }
 
-            if (!checkInventoryAvailability(conn, session.getStoreId(), items)) {
-                conn.rollback();
+            if (!checkInventoryAvailability(conn, session.getStoreId(), items)) { //Checking if product stock is adequate
+                conn.rollback();    //If stock is inadequate in current store, trans is rolled back
                 System.out.println("Error: Insufficient inventory for one or more items.");
                 return;
             }
 
             int staffId = getStaffId(session.getName(), conn);
             insertIntoTransactionRecords(transactionId, staffId, customerId, date, 0.0, "Buy", conn);
-
+            //Adding Record into TransactionRecords first because of foreign key dependency
             double totalPrice = 0.0;
             List<String[]> billDetails = new ArrayList<>();
 
@@ -110,17 +111,17 @@ public class BuyOrReturn {
                 int productId = item[0];
                 int qty = item[1];
                 double price = getDiscountedPrice(productId, date, conn);
-                totalPrice += price * qty;
+                totalPrice += price * qty; //Calculating Total Price of items
 
-                insertIntoBills(transactionId, productId, price, qty, conn);
-                updateInventory(session.getStoreId(), productId, qty, conn);
+                insertIntoBills(transactionId, productId, price, qty, conn);    //Inserting Product list into Bills
+                updateInventory(session.getStoreId(), productId, qty, conn);    //Updating Store Inventory
 
                 String productName = getProductName(conn, productId);
                 billDetails.add(new String[]{String.valueOf(productId), productName, String.valueOf(qty), String.format("%.2f", price * qty)});
             }
-
+            //Updating Calculated Total Price in TransactionRecords
             updateTotalPriceInTransaction(transactionId, totalPrice, conn);
-            conn.commit();
+            conn.commit();              //End Transaction
 
             // Print bill
             System.out.println("\n=== Bill Details ===");
@@ -139,6 +140,13 @@ public class BuyOrReturn {
 
         } catch (Exception e) {
             e.printStackTrace();
+            try {
+                if (conn != null) conn.rollback();
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+            }
+        } finally {
+            close(conn);
         }
     }
 
@@ -229,7 +237,7 @@ public class BuyOrReturn {
                 String validFrom = rs.getString("ValidFromDate");
                 String validTill = rs.getString("ValidTillDate");
                 if (validFrom!=null && !LocalDate.parse(date).isBefore(LocalDate.parse(validFrom)) && validTill != null && !LocalDate.parse(date).isAfter(LocalDate.parse(validTill))) {
-                    discount = rs.getDouble("DiscountPercent");
+                    discount = rs.getDouble("DiscountPercent");  // Check if Txn Date falls between valid Discount Dates
                 }
             }
         }
@@ -283,31 +291,35 @@ public class BuyOrReturn {
 
     private static void handleReturn(Scanner scanner, UserSession session) {
         String position = session.getJobTitle();
+        //Access Control Condition for Staff
         if (position.equals("Billing Staff") || position.equals("Registration Office Operator") || position.equals("Cashier") || position.equals("Manager") || position.equals("Assistant Manager")){
             System.out.println("You do not have access to this functionality!");
             return;
         }
-        try (Connection conn = DriverManager.getConnection(jdbcURL, user, password)) {
-            conn.setAutoCommit(false);
+
+        Connection conn = null;
+        try {
+            conn = DriverManager.getConnection(jdbcURL, user, password);
+            conn.setAutoCommit(false);  //Begin Transaction
 
             System.out.print("Enter the original Transaction ID to return from: ");
             int originalTransactionId = scanner.nextInt();
             scanner.nextLine();
-
+            //Check if entered Txn Id is valid
             String typeCheckSql = "SELECT Type FROM TransactionRecords WHERE TransactionID = ?";
             try (PreparedStatement typeStmt = conn.prepareStatement(typeCheckSql)) {
                 typeStmt.setInt(1, originalTransactionId);
                 ResultSet rs = typeStmt.executeQuery();
-                if (rs.next()) {
+                if (rs.next()) {    //Check if entered txn is of type: "Buy"
                     String type = rs.getString("Type");
                     if (!"Buy".equalsIgnoreCase(type)) {
                         System.out.println("Error: Only transactions of type 'Buy' can be returned.");
-                        conn.rollback();
+                        conn.rollback();    //Rollback txn if txn is of Type "Return"
                         return;
                     }
                 } else {
                     System.out.println("Error: Transaction ID does not exist.");
-                    conn.rollback();
+                    conn.rollback();    //Rollback if txn ID is invalid
                     return;
                 }
             }
@@ -343,7 +355,7 @@ public class BuyOrReturn {
                 conn.rollback();
                 return;
             }
-
+            //Print Original Bill
             System.out.println("\n=== Original Bill ===");
             System.out.println("Customer ID: " + originalCustomerId);
             System.out.println("+------------+----------------+----------+------------+");
@@ -375,12 +387,12 @@ public class BuyOrReturn {
 
                 if (!originalQuantities.containsKey(pid)) {
                     System.out.println("Error: Product " + pid + " was not part of the original transaction.");
-                    conn.rollback();
+                    conn.rollback();    //Rollback if ProductID entered was not part of original txn
                     return;
                 }
                 if (qty > originalQuantities.get(pid)) {
                     System.out.println("Error: Return quantity exceeds purchased quantity for Product " + pid);
-                    conn.rollback();
+                    conn.rollback();    //Rollback if return quantity exceeds purchased quantity
                     return;
                 }
                 returnItems.put(pid, qty);
@@ -395,7 +407,7 @@ public class BuyOrReturn {
                 int pid = entry.getKey();
                 int qty = entry.getValue();
                 double price = productPrices.get(pid);
-                double total = price * qty;
+                double total = price * qty; //Calculating Total refund price
                 returnTotal += total;
 
                 insertIntoBills(newTransactionId, pid, price, qty, conn);
@@ -404,7 +416,7 @@ public class BuyOrReturn {
 
             updateTotalPriceInTransaction(newTransactionId, returnTotal, conn);
 
-            conn.commit();
+            conn.commit(); //End Transaction
 
             System.out.println("\n=== Return Bill ===");
             System.out.println("Transaction ID: " + newTransactionId);
@@ -426,6 +438,13 @@ public class BuyOrReturn {
 
         } catch (Exception e) {
             e.printStackTrace();
+            try {
+                if (conn != null) conn.rollback();
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+            }
+        } finally {
+            close(conn);
         }
     }
 
@@ -448,4 +467,29 @@ public class BuyOrReturn {
             }
         }
     }
+
+    private static void close(Connection connection) {
+        if (connection != null) {
+            try {
+                connection.close();
+            } catch (Throwable ignored) {}
+        }
+    }
+
+    private static void close(Statement statement) {
+        if (statement != null) {
+            try {
+                statement.close();
+            } catch (Throwable ignored) {}
+        }
+    }
+
+    private static void close(ResultSet result) {
+        if (result != null) {
+            try {
+                result.close();
+            } catch (Throwable ignored) {}
+        }
+    }
+
 }

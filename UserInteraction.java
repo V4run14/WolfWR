@@ -45,6 +45,7 @@ public class UserInteraction {
                 "Update Store Branch",
                 "Update ClubMember membership level",
                 "Update StoreId for staff",
+                "Cancel ClubMember Membership",
                 "Logout"
         };
 
@@ -92,7 +93,7 @@ public class UserInteraction {
                     }
                     break;
                 case "Insert Store":
-                    if (title.equals("Administrator") || title.equals("Warehouse Operator") || title.equals("Cashier") || title.equals("Manager")) {
+                    if (title.equals("Administrator") ) {
                         System.out.println("Enter Store Branch: ");
                         String branch = scanner.nextLine();
                         System.out.println("Enter Store Address: ");
@@ -104,7 +105,7 @@ public class UserInteraction {
                     }
                     break;
                 case "Insert ClubMember":
-                    if (title.equals("Registration Operator") || title.equals("Cashier") || title.equals("Manager")) {
+                    if (title.equals("Registration Office Operator") || title.equals("Administrator")) {
                         try {
                             System.out.println("Enter Membership Level: ");
                             String membShipLevel = scanner.nextLine();
@@ -122,7 +123,7 @@ public class UserInteraction {
                             Date signUpDate = formatter.parse(scanner.nextLine());
                             System.out.println("Enter Due Date (yyyy-MM-dd): ");
                             Date dueDate = formatter.parse(scanner.nextLine());
-                            System.out.println("Enter Activity Status (0 or 1): ");
+                            System.out.println("Enter Membership Active Status (0 or 1): ");
                             int status = Integer.parseInt(scanner.nextLine());
                             System.out.println("Enter Last Paid (yyyy-MM-dd): ");
                             Date lastPaid = formatter.parse(scanner.nextLine());
@@ -138,7 +139,7 @@ public class UserInteraction {
                     }
                     break;
                 case "Insert Staff":
-                    if (title.equals("Administrator") || title.equals("Warehouse Operator") || title.equals("Manager")) {
+                    if (title.equals("Administrator")) {
                         try {
                             System.out.println("Enter Name: ");
                             String name = scanner.nextLine();
@@ -173,14 +174,14 @@ public class UserInteraction {
                     }
                     break;
                 case "Delete Store":
-                    if (title.equals("Administrator") || title.equals("Warehouse Operator") || title.equals("Cashier") || title.equals("Manager")) {
+                    if (title.equals("Administrator") ) {
                         System.out.println("Enter Branch Name: ");
                         String branch = scanner.nextLine();
                         query.deleteStoreByBranch(branch, con);
                     }
                     break;
                 case "Delete Club Member":
-                    if (title.equals("Registration Operator") || title.equals("Cashier") || title.equals("Manager")) {
+                    if (title.equals("Registration Operator") || title.equals("Administrator")) {
                         System.out.println("Enter First Name: ");
                         String first = scanner.nextLine();
                         System.out.println("Enter Last Name: ");
@@ -189,7 +190,7 @@ public class UserInteraction {
                     }
                     break;
                 case "Delete Staff":
-                    if (title.equals("Administrator") || title.equals("Warehouse Operator") || title.equals("Manager")) {
+                    if (title.equals("Administrator")) {
                         System.out.println("Enter Staff Name: ");
                         String name = scanner.nextLine();
                         query.deleteStaff(name, con);
@@ -205,7 +206,7 @@ public class UserInteraction {
                     }
                     break;
                 case "Update Store Branch":
-                    if (title.equals("Administrator") || title.equals("Warehouse Operator") || title.equals("Cashier") || title.equals("Manager")) {
+                    if (title.equals("Administrator") || title.equals("Manager")) {
                         System.out.println("Enter Old Branch Name: ");
                         String oldBranch = scanner.nextLine();
                         System.out.println("Enter New Branch Name: ");
@@ -214,7 +215,7 @@ public class UserInteraction {
                     }
                     break;
                 case "Update ClubMember membership level":
-                    if (title.equals("Registration Operator") || title.equals("Administrator") || title.equals("Manager")) {
+                    if (title.equals("Registration Operator") || title.equals("Administrator")) {
                         System.out.println("Enter First Name: ");
                         String first = scanner.nextLine();
                         System.out.println("Enter Last Name: ");
@@ -225,12 +226,19 @@ public class UserInteraction {
                     }
                     break;
                 case "Update StoreId for staff":
-                    if (title.equals("Administrator") || title.equals("Warehouse Operator") || title.equals("Manager")) {
+                    if (title.equals("Administrator")) {
                         System.out.println("Enter Staff Name: ");
                         String staffName = scanner.nextLine();
                         System.out.println("Enter New Store ID: ");
                         int newStoreId = Integer.parseInt(scanner.nextLine());
                         query.updateStaffStoreId(staffName, newStoreId, con);
+                    }
+                    break;
+                case "Cancel ClubMember Membership":
+                    if (title.equals("Registration Office Operator") || title.equals("Administrator")) {
+                        System.out.println("Enter Customer ID to cancel membership: ");
+                        int customerId = Integer.parseInt(scanner.nextLine());
+                        query.cancelClubMemberMembership(customerId, con); // ✅ Method call
                     }
                     break;
             }

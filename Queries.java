@@ -302,6 +302,27 @@ public class Queries {
         }
     }
 
+    /**
+     * Cancels (deactivates) a ClubMember by setting ActiveStatus to 0.
+     * @param customerId the ID of the ClubMember to deactivate
+     * @param con the database connection
+     */
+    public void cancelClubMemberMembership(int customerId, Connection con) {
+        PreparedStatement pstmt = null;
+        try {
+            pstmt = con.prepareStatement("UPDATE ClubMember SET ActiveStatus = 0 WHERE CustomerID = ?");
+            pstmt.setInt(1, customerId);
+            int rows = pstmt.executeUpdate();
+            if (rows > 0) {
+                System.out.println("ClubMember with CustomerID " + customerId + " has been deactivated.");
+            } else {
+                System.out.println("No ClubMember found with CustomerID " + customerId);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
 
 }
 

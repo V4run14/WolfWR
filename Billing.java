@@ -1,7 +1,21 @@
+/**
+ * This program provides a menu-driven interface for billing operations and discounts
+ * on merchandise. It interacts with a MariaDB database to perform staff authentication 
+ * and a series of SQL operations including generating supplier bills, handling discounts, 
+ * and calculating transaction totals.
+ *
+ * Functional Overview:
+ * - Staff login: Prompts for email and password, then verifies staff credentials.
+ * - Access Control: Only "Billing Staff" and "Administrator" are allowed to perform menu operations.
+ * - Menu Operations: Operations include generating supplier bills, store-wise bills,
+ *   rewarding platinum customers, handling discounts, calculating transaction totals,
+ *   and viewing items on sale.
+ */
 import java.sql.*;
 import java.util.Scanner;
 
 public class DatabaseMenu {
+	//DB Credentials
     private static final String jdbcURL = "jdbc:mariadb://classdb2.csc.ncsu.edu:3306/vvarath";
     private static final String user = "vvarath";
     private static final String password = "dbmsproj2025";
@@ -14,7 +28,10 @@ public class DatabaseMenu {
             System.out.print("Enter Password: ");
             String inputPassword = scanner.nextLine();
 
-            try (Connection connection = DriverManager.getConnection(jdbcURL, user, password)) {
+            Connection connection = null;
+
+            try {
+                connection = DriverManager.getConnection(jdbcURL, user, password);
                 String designation = authenticateUser(email, inputPassword, connection);
                 if (designation == null) {
                     System.out.println("Access denied.");
@@ -22,13 +39,14 @@ public class DatabaseMenu {
                 }
 
                 System.out.println("Welcome, " + designation);
-
-                if (!designation.equalsIgnoreCase("Billing Staff")) {
-                    System.out.println("Access for Billing Staff only. Exiting");
+              //Access Control Condition for Staff
+                if (!designation.equalsIgnoreCase("Billing Staff") || !designation.equalsIgnoreCase("Administrator")) {
+                    System.out.println("Access for Billing Staff and Administrator only. Exiting");
                     return;
                 }
 
                 while (true) {
+                	//Menu Operations
                     System.out.println("\n Choose an operation:");
                     System.out.println("1. Generate All Supplier Bills");
                     System.out.println("2. Generate Store-wise Supplier Bills");
@@ -41,7 +59,7 @@ public class DatabaseMenu {
                     System.out.println("9. Manage Discounts");
                     System.out.println("10. Exit");
 
-                    System.out.print("Enter your choice (1-9): ");
+                    System.out.print("Enter your choice (1-10): ");
                     int choice = scanner.nextInt();
                     scanner.nextLine();
 
@@ -63,7 +81,7 @@ public class DatabaseMenu {
                             generateSupplierBillsForSpecificStore(connection, storeID);
                         }
                         case 7 -> {
-                            System.out.print("Enter Tansaction ID: ");
+                            System.out.print("Enter Transaction ID: ");
                             int transactionID = scanner.nextInt();
                             scanner.nextLine();
                             calculateTotalTransactionPriceForID(connection, transactionID);
@@ -80,27 +98,38 @@ public class DatabaseMenu {
             } catch (SQLException e) {
                 System.out.println("Database connection failed!");
                 e.printStackTrace();
+            } finally {
+                close(connection);
             }
         }
     }
 
-
+//Function to authenticate staff members
     private static String authenticateUser(String email, String inputPassword, Connection connection) {
         String designation = null;
         String query = "SELECT JobTitle FROM Staff WHERE Email = ? AND Password = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+        PreparedStatement stmt = null;
+        ResultSet rs = null;
+        
+        try {
+            stmt = connection.prepareStatement(query);
             stmt.setString(1, email);
             stmt.setString(2, inputPassword);
-            ResultSet rs = stmt.executeQuery();
+            rs = stmt.executeQuery();
             if (rs.next()) {
                 designation = rs.getString("JobTitle");
             }
         } catch (SQLException e) {
             e.printStackTrace();
+        } finally {
+            close(rs);
+            close(stmt);
         }
+        
         return designation;
     }
 
+//Function to generate bills for suppliers
     private static void generateSupplierBills(Connection connection) {
         System.out.println("\nAll Supplier Bills");
         String query = "SELECT sh.SupplierID, sup.Name AS SupplierName, SUM(m.BuyPrice * sh.Quantity) AS TotalAmountDue " +
@@ -108,17 +137,27 @@ public class DatabaseMenu {
                        "JOIN Merchandise m ON sh.ProductID = m.ProductID " +
                        "JOIN Supplier sup ON sh.SupplierID = sup.SupplierID " +
                        "GROUP BY sh.SupplierID, sup.Name";
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(query)) {
+
+        Statement stmt = null;
+        ResultSet rs = null;
+
+        try {
+            stmt = connection.createStatement();
+            rs = stmt.executeQuery(query);
+            
             while (rs.next()) {
                 System.out.printf("Supplier: %-25s  Amount Due: $%.2f\n",
-                        rs.getString("SupplierName"), rs.getDouble("TotalAmountDue"));
+                                  rs.getString("SupplierName"), rs.getDouble("TotalAmountDue"));
             }
         } catch (SQLException e) {
             e.printStackTrace();
+        } finally {
+            close(rs);
+            close(stmt);
         }
     }
 
+//Function to generate all supplier bills store-wise
     private static void generateStoreWiseSupplierBills(Connection connection) {
         System.out.println("\nStore-wise Supplier Bills");
         String query = "SELECT s.StoreID, s.Address AS StoreLocation, sup.Name AS SupplierName, " +
@@ -128,8 +167,13 @@ public class DatabaseMenu {
                        "JOIN Merchandise m ON sh.ProductID = m.ProductID " +
                        "JOIN Supplier sup ON m.SupplierID = sup.SupplierID " +
                        "GROUP BY s.StoreID, s.Address, sup.Name";
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(query)) {
+        
+        Statement stmt = null;
+        ResultSet rs = null;
+
+        try {
+            stmt = connection.createStatement();
+            rs = stmt.executeQuery(query);
             while (rs.next()) {
                 System.out.printf("Store: %-30s Supplier: %-25s  Amount Owed: $%.2f\n",
                         rs.getString("StoreLocation"),
@@ -138,23 +182,27 @@ public class DatabaseMenu {
             }
         } catch (SQLException e) {
             e.printStackTrace();
+        } finally {
+            close(rs);
+            close(stmt);
         }
     }
-
+//Function to generate rewards for Platinum Members
     private static void rewardPlatinumCustomers(Connection connection) {
         System.out.println("\nPlatinum Customers Reward");
-        String query = "SELECT " +
-                       "c.CustomerID, " +
-                       "CONCAT(c.Fname, ' ', c.Lname) AS CustomerName, " +
-                       "SUM(t.TotalPrice) AS TotalSpent, " +
-                       "SUM(t.TotalPrice) * 0.05 AS RewardAmount " +
+        String query = "SELECT c.CustomerID, CONCAT(c.Fname, ' ', c.Lname) AS CustomerName, " +
+                       "SUM(t.TotalPrice) AS TotalSpent, SUM(t.TotalPrice) * 0.05 AS RewardAmount " +
                        "FROM TransactionRecords t " +
                        "JOIN ClubMember c ON t.CustomerID = c.CustomerID " +
                        "WHERE c.MembershipLevel = 'Platinum' AND YEAR(t.Date) = YEAR(CURDATE()) " +
-                       "GROUP BY c.CustomerID " +
-                       "HAVING TotalSpent > 0";
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(query)) {
+                       "GROUP BY c.CustomerID HAVING TotalSpent > 0";
+
+        Statement stmt = null;
+        ResultSet rs = null;
+
+        try {
+            stmt = connection.createStatement();
+            rs = stmt.executeQuery(query);
             while (rs.next()) {
                 System.out.printf("Customer: %-30s  Reward: $%.2f\n",
                         rs.getString("CustomerName"),
@@ -162,9 +210,12 @@ public class DatabaseMenu {
             }
         } catch (SQLException e) {
             e.printStackTrace();
+        } finally {
+            close(rs);
+            close(stmt);
         }
     }
-
+//Function to Manage Discounts on Merchandise
     private static void manageDiscounts(Connection connection, Scanner scanner) {
         while (true) {
             System.out.println("\n--- Discount Management ---");
@@ -185,7 +236,9 @@ public class DatabaseMenu {
             }
         }
     }
+    //Function to add new Discount on Merchandise
     private static void addDiscount(Connection connection, Scanner scanner) {
+        PreparedStatement pstmt = null;
         try {
             System.out.print("Enter Product ID: ");
             int productId = scanner.nextInt();
@@ -202,19 +255,22 @@ public class DatabaseMenu {
             String toDate = scanner.nextLine();
 
             String query = "INSERT INTO Discount (ProductID, DiscountPercent, ValidFromDate, ValidTillDate) VALUES (?, ?, ?, ?)";
-            try (PreparedStatement pstmt = connection.prepareStatement(query)) {
-                pstmt.setInt(1, productId);
-                pstmt.setInt(2, discountPercent);
-                pstmt.setDate(3, Date.valueOf(fromDate));
-                pstmt.setDate(4, Date.valueOf(toDate));
-                int rows = pstmt.executeUpdate();
-                System.out.println(rows > 0 ? "Discount added successfully." : "Failed to add discount.");
-            }
+            pstmt = connection.prepareStatement(query);
+            pstmt.setInt(1, productId);
+            pstmt.setInt(2, discountPercent);
+            pstmt.setDate(3, Date.valueOf(fromDate));
+            pstmt.setDate(4, Date.valueOf(toDate));
+            int rows = pstmt.executeUpdate();
+            System.out.println(rows > 0 ? "Discount added successfully." : "Failed to add discount.");
         } catch (Exception e) {
             System.out.println("Error while adding discount: " + e.getMessage());
+        } finally {
+            close(pstmt);
         }
     }
+
     private static void modifyDiscount(Connection connection, Scanner scanner) {
+        PreparedStatement pstmt = null;
         try {
             System.out.print("Enter Product ID of Discount to Modify: ");
             int productId = scanner.nextInt();
@@ -234,21 +290,23 @@ public class DatabaseMenu {
             String newToDate = scanner.nextLine();
 
             String query = "UPDATE Discount SET DiscountPercent = ?, ValidFromDate = ?, ValidTillDate = ? WHERE ProductID = ? AND ValidTillDate = ?";
-            try (PreparedStatement pstmt = connection.prepareStatement(query)) {
-                pstmt.setInt(1, discountPercent);
-                pstmt.setDate(2, Date.valueOf(fromDate));
-                pstmt.setDate(3, Date.valueOf(newToDate));
-                pstmt.setInt(4, productId);
-                pstmt.setDate(5, Date.valueOf(toDate));
-                int rows = pstmt.executeUpdate();
-                System.out.println(rows > 0 ? "Discount modified successfully." : "No matching discount found to modify.");
-            }
+            pstmt = connection.prepareStatement(query);
+            pstmt.setInt(1, discountPercent);
+            pstmt.setDate(2, Date.valueOf(fromDate));
+            pstmt.setDate(3, Date.valueOf(newToDate));
+            pstmt.setInt(4, productId);
+            pstmt.setDate(5, Date.valueOf(toDate));
+            int rows = pstmt.executeUpdate();
+            System.out.println(rows > 0 ? "Discount modified successfully." : "No matching discount found to modify.");
         } catch (Exception e) {
             System.out.println("Error while modifying discount: " + e.getMessage());
+        } finally {
+            close(pstmt);
         }
     }
 
     private static void deleteDiscount(Connection connection, Scanner scanner) {
+        PreparedStatement pstmt = null;
         try {
             System.out.print("Enter Product ID: ");
             int productId = scanner.nextInt();
@@ -258,18 +316,20 @@ public class DatabaseMenu {
             String toDate = scanner.nextLine();
 
             String query = "DELETE FROM Discount WHERE ProductID = ? AND ValidTillDate = ?";
-            try (PreparedStatement pstmt = connection.prepareStatement(query)) {
-                pstmt.setInt(1, productId);
-                pstmt.setDate(2, Date.valueOf(toDate));
-                int rows = pstmt.executeUpdate();
-                System.out.println(rows > 0 ? "Discount deleted successfully." : "No matching discount found.");
-            }
+            pstmt = connection.prepareStatement(query);
+            pstmt.setInt(1, productId);
+            pstmt.setDate(2, Date.valueOf(toDate));
+            int rows = pstmt.executeUpdate();
+            System.out.println(rows > 0 ? "Discount deleted successfully." : "No matching discount found.");
         } catch (Exception e) {
             System.out.println("Error while deleting discount: " + e.getMessage());
+        } finally {
+            close(pstmt);
         }
     }
 
 
+//Function to calculate the total price for all transactions
     private static void calculateTotalTransactionPrice(Connection connection) {
         System.out.println("\nTotal Transaction Price");
         String query = "SELECT tr.TransactionID, tr.Date, tr.CustomerID, c.Fname, c.Lname, " +
@@ -280,8 +340,13 @@ public class DatabaseMenu {
                        "LEFT JOIN Discount d ON b.ProductID = d.ProductID AND d.ValidTillDate >= CURDATE() " +
                        "WHERE tr.Type = 'Buy' " +
                        "GROUP BY tr.TransactionID, tr.Date, tr.CustomerID, c.Fname, c.Lname";
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(query)) {
+        
+        Statement stmt = null;
+        ResultSet rs = null;
+
+        try {
+            stmt = connection.createStatement();
+            rs = stmt.executeQuery(query);
             while (rs.next()) {
                 System.out.printf("Transaction ID: %-10d  Customer: %-20s  Date: %-12s  Final Total: $%.2f\n",
                         rs.getInt("TransactionID"),
@@ -291,8 +356,12 @@ public class DatabaseMenu {
             }
         } catch (SQLException e) {
             e.printStackTrace();
+        } finally {
+            close(rs);
+            close(stmt);
         }
     }
+    //Function to generate supplier bill for specific store, takes store ID as input
     private static void generateSupplierBillsForSpecificStore(Connection connection, int storeID) {
         System.out.println("\nSupplier Bills for Store ID: " + storeID);
         String query = "SELECT s.StoreID, s.Address AS StoreLocation, sup.Name AS SupplierName, " +
@@ -303,26 +372,35 @@ public class DatabaseMenu {
                        "JOIN Supplier sup ON m.SupplierID = sup.SupplierID " +
                        "WHERE s.StoreID = ? " +
                        "GROUP BY s.StoreID, s.Address, sup.Name";
-        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+
+        try {
+            pstmt = connection.prepareStatement(query);
             pstmt.setInt(1, storeID);
-            try (ResultSet rs = pstmt.executeQuery()) {
-                boolean hasResults = false;
-                while (rs.next()) {
-                    hasResults = true;
-                    System.out.printf("Store: %-30s Supplier: %-25s  Amount Owed: $%.2f\n",
-                            rs.getString("StoreLocation"),
-                            rs.getString("SupplierName"),
-                            rs.getDouble("TotalAmountOwed"));
-                }
-                if (!hasResults) {
-                    System.out.println("No data found for Store ID: " + storeID);
-                }
+            rs = pstmt.executeQuery();
+
+            boolean hasResults = false;
+            while (rs.next()) {
+                hasResults = true;
+                System.out.printf("Store: %-30s Supplier: %-25s  Amount Owed: $%.2f\n",
+                                  rs.getString("StoreLocation"),
+                                  rs.getString("SupplierName"),
+                                  rs.getDouble("TotalAmountOwed"));
+            }
+            if (!hasResults) {
+                System.out.println("No data found for Store ID: " + storeID);
             }
         } catch (SQLException e) {
             e.printStackTrace();
+        } finally {
+            close(rs);
+            close(pstmt);
         }
     }
 
+//Function to calculate total amount for a specific transaction, takes transaction ID as input
     private static void calculateTotalTransactionPriceForID(Connection connection, int transactionID) {
         System.out.println("\nTotal Transaction Price for Transaction ID: " + transactionID);
         String query = "SELECT tr.TransactionID, tr.Date, tr.CustomerID, c.Fname, c.Lname, " +
@@ -334,25 +412,33 @@ public class DatabaseMenu {
                        "WHERE tr.Type = 'Buy' AND tr.TransactionID = ? " +
                        "GROUP BY tr.TransactionID, tr.Date, tr.CustomerID, c.Fname, c.Lname";
 
-        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+
+        try {
+            pstmt = connection.prepareStatement(query);
             pstmt.setInt(1, transactionID);
-            try (ResultSet rs = pstmt.executeQuery()) {
-                if (rs.next()) {
-                    System.out.printf("Transaction ID: %-10d  Customer: %-20s  Date: %-12s  Final Total: $%.2f\n",
-                            rs.getInt("TransactionID"),
-                            rs.getString("Fname") + " " + rs.getString("Lname"),
-                            rs.getDate("Date").toString(),
-                            rs.getDouble("FinalTotalPrice"));
-                } else {
-                    System.out.println("No transaction found with ID: " + transactionID);
-                }
+            rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                System.out.printf("Transaction ID: %-10d  Customer: %-20s  Date: %-12s  Final Total: $%.2f\n",
+                                  rs.getInt("TransactionID"),
+                                  rs.getString("Fname") + " " + rs.getString("Lname"),
+                                  rs.getDate("Date").toString(),
+                                  rs.getDouble("FinalTotalPrice"));
+            } else {
+                System.out.println("No transaction found with ID: " + transactionID);
             }
         } catch (SQLException e) {
             e.printStackTrace();
+        } finally {
+            close(rs);
+            close(pstmt);
         }
     }
 
-    
+
+    //Function to display all items on sale
     private static void getItemsOnSale(Connection connection) {
         System.out.println("\nItems Currently on Sale:");
         String query = "SELECT m.ProductID, m.Name, " +
@@ -365,9 +451,13 @@ public class DatabaseMenu {
                        "FROM Merchandise m " +
                        "LEFT JOIN Discount d ON m.ProductID = d.ProductID";
 
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(query)) {
-            
+        Statement stmt = null;
+        ResultSet rs = null;
+
+        try {
+            stmt = connection.createStatement();
+            rs = stmt.executeQuery(query);
+
             boolean hasResults = false;
             while (rs.next()) {
                 hasResults = true;
@@ -378,7 +468,7 @@ public class DatabaseMenu {
 
                 if (!rs.wasNull()) {
                     System.out.printf("Product ID: %-5d  Name: %-25s  Original: $%.2f  Discounted: $%.2f\n",
-                            productID, name, originalPrice, discountedPrice);
+                                      productID, name, originalPrice, discountedPrice);
                 }
             }
 
@@ -387,10 +477,14 @@ public class DatabaseMenu {
             }
         } catch (SQLException e) {
             e.printStackTrace();
+        } finally {
+            close(rs);
+            close(stmt);
         }
     }
 
 
+//Function to generate bill for a specific supplier, takes Supplier ID as input.
     private static void generateBillForSpecificSupplier(Connection connection, int supplierId) {
         System.out.println("\nSupplier Bill for ID: " + supplierId + " ---");
         String query = "SELECT sup.Name AS SupplierName, SUM(sh.Quantity * m.BuyPrice) AS AmountDue " +
@@ -399,18 +493,48 @@ public class DatabaseMenu {
                        "JOIN Supplier sup ON m.SupplierID = sup.SupplierID " +
                        "WHERE sup.SupplierID = ? " +
                        "GROUP BY sup.Name";
-        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+
+        PreparedStatement stmt = null;
+        ResultSet rs = null;
+
+        try {
+            stmt = connection.prepareStatement(query);
             stmt.setInt(1, supplierId);
-            ResultSet rs = stmt.executeQuery();
+            rs = stmt.executeQuery();
+
             if (rs.next()) {
                 System.out.printf("Supplier: %-25s  Amount Due: $%.2f\n",
-                        rs.getString("SupplierName"),
-                        rs.getDouble("AmountDue"));
+                                  rs.getString("SupplierName"),
+                                  rs.getDouble("AmountDue"));
             } else {
                 System.out.println("No records found for this Supplier ID.");
             }
         } catch (SQLException e) {
             e.printStackTrace();
+        } finally {
+            close(rs);
+            close(stmt);
         }
     }
+
+
+    static void close(Connection conn) {
+        if (conn != null) {
+            try { conn.close(); } catch (Throwable whatever) {}
+        }
+    }
+
+    static void close(Statement st) {
+        if (st != null) {
+            try { st.close(); } catch (Throwable whatever) {}
+        }
+    }
+
+    static void close(ResultSet rs) {
+        if (rs != null) {
+            try { rs.close(); } catch (Throwable whatever) {}
+        }
+    
+    }
+
 }

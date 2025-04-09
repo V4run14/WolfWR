@@ -1,7 +1,9 @@
+package WolfWR;
+
 import java.sql.*;
 import java.util.Scanner;
 
-public class DatabaseMenu {
+public class Billing {
     private static final String jdbcURL = "jdbc:mariadb://classdb2.csc.ncsu.edu:3306/vvarath";
     private static final String user = "vvarath";
     private static final String password = "dbmsproj2025";
@@ -46,35 +48,35 @@ public class DatabaseMenu {
                     scanner.nextLine();
 
                     switch (choice) {
-                        case 1 -> generateSupplierBills(connection);
-                        case 2 -> generateStoreWiseSupplierBills(connection);
-                        case 3 -> rewardPlatinumCustomers(connection);
-                        case 4 -> calculateTotalTransactionPrice(connection);
-                        case 5 -> {
+                        case 1 : generateSupplierBills(connection);
+                        case 2 : generateStoreWiseSupplierBills(connection);
+                        case 3 : rewardPlatinumCustomers(connection);
+                        case 4 : calculateTotalTransactionPrice(connection);
+                        case 5 : {
                             System.out.print("Enter Supplier ID: ");
                             int supplierId = scanner.nextInt();
                             scanner.nextLine();
                             generateBillForSpecificSupplier(connection, supplierId);
                         }
-                        case 6 -> {
+                        case 6 : {
                             System.out.print("Enter Store ID: ");
                             int storeID = scanner.nextInt();
                             scanner.nextLine();
                             generateSupplierBillsForSpecificStore(connection, storeID);
                         }
-                        case 7 -> {
+                        case 7 : {
                             System.out.print("Enter Tansaction ID: ");
                             int transactionID = scanner.nextInt();
                             scanner.nextLine();
                             calculateTotalTransactionPriceForID(connection, transactionID);
                         }
-                        case 8 -> getItemsOnSale(connection);
-                        case 9 -> manageDiscounts(connection, scanner);
-                        case 10 -> {
+                        case 8 : getItemsOnSale(connection);
+                        case 9 : manageDiscounts(connection, scanner);
+                        case 10 : {
                             System.out.println("Exiting");
                             return;
                         }
-                        default -> System.out.println("Invalid choice. Please try again.");
+                        default : System.out.println("Invalid choice. Please try again.");
                     }
                 }
             } catch (SQLException e) {
@@ -177,11 +179,11 @@ public class DatabaseMenu {
             scanner.nextLine(); 
 
             switch (option) {
-                case 1 -> addDiscount(connection, scanner);
-                case 2 -> modifyDiscount(connection, scanner);
-                case 3 -> deleteDiscount(connection, scanner);
-                case 4 -> { return; }
-                default -> System.out.println("Invalid choice. Try again.");
+                case 1 : addDiscount(connection, scanner);
+                case 2 : modifyDiscount(connection, scanner);
+                case 3 : deleteDiscount(connection, scanner);
+                case 4 : { return; }
+                default : System.out.println("Invalid choice. Try again.");
             }
         }
     }

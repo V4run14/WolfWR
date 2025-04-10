@@ -432,19 +432,16 @@ public class Billing {
         }
     }
 
-
     //Function to display all items on sale
     private static void getItemsOnSale(Connection connection) {
         System.out.println("\nItems Currently on Sale:");
         String query = "SELECT m.ProductID, m.Name, " +
                        "m.MarketPrice AS OriginalPrice, " +
-                       "CASE " +
-                       "WHEN d.DiscountPercent IS NOT NULL AND d.ValidTillDate >= CURDATE() THEN " +
-                       "m.MarketPrice * (1 - d.DiscountPercent / 100) " +
-                       "ELSE NULL " +
-                       "END AS FinalDiscountPrice " +
+                       "m.MarketPrice * (1 - d.DiscountPercent / 100.0) AS FinalDiscountPrice " +
                        "FROM Merchandise m " +
-                       "LEFT JOIN Discount d ON m.ProductID = d.ProductID";
+                       "JOIN Discount d ON m.ProductID = d.ProductID " +
+                       "WHERE d.DiscountPercent IS NOT NULL " +
+                       "AND CURDATE() BETWEEN d.ValidFromDate AND d.ValidTillDate";
 
         Statement stmt = null;
         ResultSet rs = null;
@@ -461,10 +458,8 @@ public class Billing {
                 double originalPrice = rs.getDouble("OriginalPrice");
                 double discountedPrice = rs.getDouble("FinalDiscountPrice");
 
-                if (!rs.wasNull()) {
-                    System.out.printf("Product ID: %-5d  Name: %-25s  Original: $%.2f  Discounted: $%.2f\n",
-                                      productID, name, originalPrice, discountedPrice);
-                }
+                System.out.printf("Product ID: %-5d  Name: %-25s  Original: $%.2f  Discounted: $%.2f\n",
+                                  productID, name, originalPrice, discountedPrice);
             }
 
             if (!hasResults) {
@@ -477,6 +472,7 @@ public class Billing {
             close(stmt);
         }
     }
+
 
 
 //Function to generate bill for a specific supplier, takes Supplier ID as input.

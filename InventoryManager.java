@@ -336,8 +336,7 @@ public class InventoryManager {
         int destStore = Integer.parseInt(scanner.nextLine().trim());
 
         System.out.print("Enter Product ID to transfer: ");
-        
-       // List<Integer> eligibleProductIds = new ArrayList<>();
+      
         try (
                 Connection conn = DriverManager.getConnection(jdbcURL, user, passwd)
             ) {
@@ -417,9 +416,8 @@ public class InventoryManager {
      }
 
      // Step 3: Ask for quantity with context
-     System.out.print("Enter quantity to transfer (max " + availableQty + "): ");
-    
-     int qty = Integer.parseInt(scanner.nextLine().trim());
+     int qty = getValidQuantityInput(scanner, availableQty);
+
 
         int sourceStore = session.getStoreId();
 
@@ -605,7 +603,24 @@ public class InventoryManager {
         return input.trim().equalsIgnoreCase("yes");
  
     }
-    
+    //Get Valid Quantity input when doing product transfers
+    private static int getValidQuantityInput(Scanner scanner, int maxQty) {
+        int qty = 0;
+        while (true) {
+            System.out.print("Enter quantity to transfer (max " + maxQty + "): ");
+            try {
+                qty = Integer.parseInt(scanner.nextLine().trim());
+                if (qty > 0 && qty <= maxQty) {
+                    return qty;
+                } else {
+                    System.out.println("❌ Please enter a number between 1 and " + maxQty + ".");
+                }
+            } catch (NumberFormatException e) {
+                System.out.println("❌ Invalid input. Please enter a valid number.");
+            }
+        }
+    }
+
     // Closes a JDBC Connection safely
     static void close(Connection conn) {
         if (conn != null) try { System.out.print("Connection Closed: ");conn.close(); } catch (Throwable ignored) {}

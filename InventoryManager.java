@@ -20,20 +20,8 @@ public class InventoryManager {
             }
         }
     }
-//    public static void main(String[] args) {
-//        try {
-//            Class.forName("org.mariadb.jdbc.Driver");
-//
-//            addProductsToStore();
-//            transferProductsBetweenStores();
-//            deleteExpiredProducts();
-//            selectDiscounts();
-//
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
-//
-//    }
+
+    // Authenticates staff and creates a user session if credentials are valid
     public static UserSession login(Scanner scanner) {
         System.out.print("Enter Staff Email: ");
         String inputEmail = scanner.nextLine();
@@ -48,6 +36,7 @@ public class InventoryManager {
         try {
             Class.forName("org.mariadb.jdbc.Driver");
             connection = DriverManager.getConnection(jdbcURL, user, passwd);
+            // Prepare statement to verify credentials
             preparedStatement = connection.prepareStatement("SELECT * FROM Staff WHERE Email = ? AND Password = ?");
 
             preparedStatement.setString(1, inputEmail);
@@ -74,6 +63,8 @@ public class InventoryManager {
             close(connection);
         }
     }
+    
+    // Displays the main menu and routes user actions based on input
     private static void showMenu(Scanner scanner, UserSession session) {
         while (true) {
             System.out.println("\n=== MENU ===");
@@ -93,15 +84,15 @@ public class InventoryManager {
                     break;
                 case "2":
                 	transferProductsBetweenStores(scanner,session);
-                    //generateGrowthSalesReport(scanner, session);
+                   
                     break;
                 case "3":
                 	deleteExpiredProducts(scanner, session);
-                    //generateMerchandiseStockReport(scanner, session);
+                   
                     break;
                 case "4":
                 	 selectDiscounts(scanner,session);
-                    //generateCustomerGrowthReport(scanner, session);
+                   
                     break;
                 case "5":
                     System.out.println("Logging out...\n");
@@ -125,7 +116,7 @@ public class InventoryManager {
         int storeId = session.getStoreId();
         String position = session.getJobTitle();
 
-        if (position.equals("Cashier") || position.equals("Registration Office Operator")) {
+        if (position.equals("Cashier") || position.equals("Registration Office Operator")||position.equals("Billing Staff") ){
             System.out.println("You do not have access to this operation!");
             return;
         }
@@ -247,17 +238,17 @@ public class InventoryManager {
     }
 
 
-
+       // Create shipment record in the database when doing merchandise shipment from Supllier to Store
     private static void createShipment(Scanner scanner, UserSession session,Connection conn, Integer defaultProductId) {
         createShipment(scanner, session,conn, null, session.getStoreId(), defaultProductId, null);
     }
 
-    // Overloaded version for transfer
+  // Overloaded method to create a shipment for transfer when doing Store to Store Transfer
     private static void createShipment(Scanner scanner, UserSession session,Connection conn,
                                        Integer sourceStore, Integer destStore,
                                        Integer defaultProductId, Integer defaultQty) {
         try (
-            //Connection conn = DriverManager.getConnection(jdbcURL, user, passwd);
+          
         		PreparedStatement pstmt = conn.prepareStatement(
         			    "INSERT INTO Shipments (ShipmentID, SupplierID, ProductID, Quantity, Source_StoreID, Dest_StoreID) " +
         			    "VALUES (?, (SELECT SupplierID FROM Merchandise WHERE ProductID = ?), ?, ?, ?, ?)"
@@ -297,7 +288,7 @@ public class InventoryManager {
     }
 
 
-
+     // Displays current state of the StoreInventory table
     public static void printStoreInventoryFromConnection(Connection conn) {
         String sql = "SELECT * FROM StoreInventory ORDER BY StoreID, ProductID";
 
@@ -320,10 +311,10 @@ public class InventoryManager {
             e.printStackTrace();
         }
     }
-
+    // Transfers product from one store to another
     private static void transferProductsBetweenStores(Scanner scanner, UserSession session) {
     	 String position = session.getJobTitle();
-         if (position.equals("Cashier") || position.equals("Registration Office Operator") ){
+         if (position.equals("Cashier") || position.equals("Registration Office Operator")||position.equals("Billing Staff") ){
              System.out.println("You do not have access to this report!");
              return;
          }
@@ -458,15 +449,16 @@ public class InventoryManager {
             System.out.println("Error processing transfer.");
         }
     }
-
+     // Deletes all expired products from inventory
     public static void deleteExpiredProducts(Scanner scanner, UserSession session) {
     	 String position = session.getJobTitle();
-         if (position.equals("Cashier") || position.equals("Registration Office Operator") ){
+         if (position.equals("Cashier") || position.equals("Registration Office Operator")||position.equals("Billing Staff") ){
              System.out.println("You do not have access to this report!");
              return;
          }
         Connection conn = null;
         PreparedStatement pstmt = null;
+        // SQL to show and delete expired inventory
         String showExpiredSQL =
                 "SELECT si.ProductID,  m.ExpireDate, si.StoreID, si.Quantity " +
                 "FROM StoreInventory si " +
@@ -519,11 +511,11 @@ public class InventoryManager {
             close(conn);
         }
     }
-
+     // Displays products that currently have discounts > 0%
     public static void selectDiscounts(Scanner scanner, UserSession session) {
-    	//Returns Products with Discounts >0
+    
     	String position = session.getJobTitle();
-        if (position.equals("Cashier") || position.equals("Registration Office Operator") ){
+        if (position.equals("Cashier") || position.equals("Registration Office Operator")||position.equals("Billing Staff") ){
             System.out.println("You do not have access to this report!");
             return;
         }
@@ -557,7 +549,7 @@ public class InventoryManager {
             }
         }
     }
-
+    // Asks user to confirm an action with yes/no
     static boolean getUserConfirmation(String actionName) {
         Scanner sc = new Scanner(System.in);
         System.out.print("🟡 Confirm commit for \"" + actionName + "\"? (yes/no): ");
@@ -567,7 +559,8 @@ public class InventoryManager {
         return input.trim().equalsIgnoreCase("yes");
  
     }
-
+    
+    // Closes a JDBC Connection safely
     static void close(Connection conn) {
         if (conn != null) try { System.out.print("Connection Closed: ");conn.close(); } catch (Throwable ignored) {}
     }

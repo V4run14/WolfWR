@@ -4,9 +4,9 @@ import java.util.Scanner;
 
 public class Reports {
     //DB Credentials
-    private static final String jdbcURL = "jdbc:mariadb://classdb2.csc.ncsu.edu:3306/btsima"; // Using SERVICE_NAME
-    private static final String user = "btsima";
-    private static final String password = "mypwis54321";
+    private static final String jdbcURL = "jdbc:mariadb://classdb2.csc.ncsu.edu:3306/vvarath"; // Using SERVICE_NAME
+    private static final String user = "vvarath";
+    private static final String password = "dbmsproj2025";
 
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);

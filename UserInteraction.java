@@ -11,10 +11,10 @@ import WolfWR.models.*;
 
 public class UserInteraction {
     public static void main(String[] args) {
-        String jdbcURL = "jdbc:mariadb://classdb2.csc.ncsu.edu:3306/btsima";
+        String jdbcURL = "jdbc:mariadb://classdb2.csc.ncsu.edu:3306/vvarath";
         Connection con = null;
-        String user = "btsima";
-        String passwd = "mypwis54321";
+        String user = "vvarath";
+        String passwd = "dbmsproj2025";
 
         try {
             Class.forName("org.mariadb.jdbc.Driver");

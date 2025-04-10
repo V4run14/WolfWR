@@ -5,11 +5,26 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import WolfWR.models.*;
-/**
- * This class contains all the queries necessary for insert, delete and update
- * for suppliers, stores, clubmembers and staff
- */
+
 public class Queries {
+
+    public UserSession loginAndGetSession(String email, String password, Connection con) {
+        String query = "SELECT Name, JobTitle, StoreID FROM Staff WHERE Email=? AND Password=?";
+        try (PreparedStatement stmt = con.prepareStatement(query)) {
+            stmt.setString(1, email);
+            stmt.setString(2, password);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                String name = rs.getString("Name");
+                String jobTitle = rs.getString("JobTitle");
+                int storeId = rs.getInt("StoreID");
+                return new UserSession(name, jobTitle, storeId);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
 
     /**
      * Insert one supplier into the database
@@ -56,41 +71,6 @@ public class Queries {
             e.printStackTrace();
         }
     }
-    /**
-     * Insert a single club member into the database
-     * @param cm the club member to insert
-     * @param con the connection used for the insert
-     */
-    public void singleInsertClubMemb(ClubMember cm, Connection con) {
-        PreparedStatement pstmt = null;
-
-        try {
-
-            pstmt = con.prepareStatement("INSERT INTO ClubMember (MembershipLevel, Address, Email, PhoneNumber, Fname, Lname, SignupDate, DueDate, ActiveStatus, LastPaid, StoreID, SignupStaffID) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)");
-
-            pstmt.setString(1, cm.getMembershipLevel());
-            pstmt.setString(2, cm.getAddress());
-            pstmt.setString(3, cm.getEmail());
-            pstmt.setString(4, cm.getPhoneNumber());
-            pstmt.setString(5, cm.getFirstName());
-            pstmt.setString(6, cm.getLastName());
-            java.sql.Date signUp = new java.sql.Date(cm.getSignUpDate().getTime());
-            java.sql.Date dueDate = new java.sql.Date(cm.getDueDate().getTime());
-            pstmt.setDate(7, signUp);
-            pstmt.setDate(8, dueDate);
-            java.sql.Date lastPaid = new java.sql.Date(cm.getLastPaid().getTime());
-            pstmt.setInt(9, cm.getActivityStatus());
-            pstmt.setDate(10, lastPaid);
-            pstmt.setInt(11, cm.getStoreID());
-            pstmt.setInt(12, cm.getSignupStaffID());
-
-            pstmt.execute();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-
-    }
-
 
     /**
      * Insert a single staff member into the database
@@ -122,208 +102,111 @@ public class Queries {
         }
 
     }
+    public void singleInsertClubMemb(ClubMember cm, Connection con) {
+        try (PreparedStatement pstmt = con.prepareStatement(
+                "INSERT INTO ClubMember (MembershipLevel, Address, Email, PhoneNumber, Fname, Lname, SignupDate, DueDate, ActiveStatus, LastPaid, StoreID, SignupStaffID) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)")) {
 
-    /**
-     * Delete a single supplier by the given name
-     * @param name the name of the supplier to delete
-     * @param con the connection to db
-     */
-    public void deleteSupplierByName(String name, Connection con) {
-
-        PreparedStatement pstmt = null;
-        try {
-            pstmt = con.prepareStatement("DELETE FROM Supplier WHERE Name=?");
-            pstmt.setString(1, name);
-            pstmt.execute();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
-    /**
-     * Deletes a store by the given branch
-     * @param branch the branch of the store to delete from database
-     * @param con the connection to the database
-     */
-    public void deleteStoreByBranch(String branch, Connection con) {
-        PreparedStatement pstmt = null;
-
-        try {
-            pstmt = con.prepareStatement("DELETE FROM Store WHERE Branch = ?");
-            pstmt.setString(1, branch);
-            pstmt.execute();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
-    /**
-     * Deletes a club member with the given first and last name
-     * @param firstName the first name of the club member to delete
-     * @param lastName the last name of the club member to delete
-     * @param con the connection to the database
-     */
-    public void deleteClubMemb(String firstName, String lastName, Connection con) {
-        PreparedStatement pstmt = null;
-
-        try {
-            pstmt = con.prepareStatement("DELETE FROM ClubMember WHERE Fname = ? AND Lname = ?");
-            pstmt.setString(1, firstName);
-            pstmt.setString(2, lastName);
-            pstmt.execute();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-
-    }
-    /**
-     * Deletes the staff with the given name from the database
-     * @param name the name of the staff to delete
-     * @param con the connection to use to the database
-     */
-    public void deleteStaff(String name, Connection con) {
-        PreparedStatement pstmt = null;
-
-        try {
-            pstmt = con.prepareStatement("DELETE FROM Staff WHERE Name = ?");
-            pstmt.setString(1, name);
-            pstmt.execute();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
-    /**
-     * Authenticates the staff member based on email and password
-     * @param email the email of the user
-     * @param password the password of the user
-     * @param con the connection
-     * @return returns the job title of the staff member
-     */
-    public String auth(String email, String password, Connection con) {
-
-        String query = "SELECT JobTitle FROM Staff WHERE Email=? AND Password=?";
-        String jobTitle = "";
-        try (PreparedStatement stmt = con.prepareStatement(query)) {
-            stmt.setString(1, email);
-            stmt.setString(2, password);
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) {
-                jobTitle = rs.getString(1);
-            }
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-
-        return jobTitle;
-    }
-    /**
-     * updates the name of the supplier using old name
-     * @param oldName the old name of the supplier
-     * @param newName the new name of the supplier
-     * @param con the connection to the database
-     */
-    public void updateSupplierName(String oldName, String newName, Connection con) {
-        PreparedStatement pstmt = null;
-
-        try {
-            pstmt = con.prepareStatement("UPDATE Supplier SET Name=? WHERE Name=?");
-
-            pstmt.setString(1, newName);
-            pstmt.setString(2, oldName);
-            pstmt.execute();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-
-
-
-    }
-    /**
-     * update the branch name of the given branch with the new one
-     * @param oldBranch the name of the old branch
-     * @param newBranch the name of the new branch to update with
-     * @param con the connection to use
-     */
-    public void updateStoreBranch(String oldBranch, String newBranch, Connection con) {
-        PreparedStatement pstmt = null;
-
-        try {
-
-            pstmt = con.prepareStatement("UPDATE Store SET Branch=? WHERE Branch=?");
-            pstmt.setString(1, newBranch);
-            pstmt.setString(2, oldBranch);
-            pstmt.execute();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-
-    }
-
-    /**
-     * update the membership level of the club member with the given first and last name
-     * @param firstName first name of the club member to update
-     * @param lastName last name of the club member to update
-     * @param newMembLevel the new level to update to
-     * @param con the connection to use
-     */
-    public void updateClubMemberLevel(String firstName, String lastName, String newMembLevel, Connection con) {
-        PreparedStatement pstmt = null;
-
-        try {
-
-            pstmt = con.prepareStatement("UPDATE ClubMember SET MembershipLevel=? WHERE Fname=? AND Lname=?");
-            pstmt.setString(1, newMembLevel);
-            pstmt.setString(2, firstName);
-            pstmt.setString(3, lastName);
-            pstmt.execute();
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-
-    }
-    /**
-     * Update the store id of a staff
-     * @param name the name of the staff to update
-     * @param newStoreId the store id to update to
-     */
-    public void updateStaffStoreId(String name, int newStoreId, Connection con) {
-        PreparedStatement pstmt = null;
-
-        try {
-            pstmt = con.prepareStatement("UPDATE Staff SET StoreID=? WHERE Name=?");
-
-            pstmt.setInt(1, newStoreId);
-            pstmt.setString(2, name);
+            pstmt.setString(1, cm.getMembershipLevel());
+            pstmt.setString(2, cm.getAddress());
+            pstmt.setString(3, cm.getEmail());
+            pstmt.setString(4, cm.getPhoneNumber());
+            pstmt.setString(5, cm.getFirstName());
+            pstmt.setString(6, cm.getLastName());
+            pstmt.setDate(7, new java.sql.Date(cm.getSignUpDate().getTime()));
+            pstmt.setDate(8, new java.sql.Date(cm.getDueDate().getTime()));
+            pstmt.setInt(9, cm.getActivityStatus());
+            pstmt.setDate(10, new java.sql.Date(cm.getLastPaid().getTime()));
+            pstmt.setInt(11, cm.getStoreID());
+            pstmt.setInt(12, cm.getSignupStaffID());
 
             pstmt.execute();
-
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
 
-    /**
-     * Cancels (deactivates) a ClubMember by setting ActiveStatus to 0.
-     * @param customerId the ID of the ClubMember to deactivate
-     * @param con the database connection
-     */
-    public void cancelClubMemberMembership(int customerId, Connection con) {
-        PreparedStatement pstmt = null;
-        try {
-            pstmt = con.prepareStatement("UPDATE ClubMember SET ActiveStatus = 0 WHERE CustomerID = ?");
+    public void deleteClubMembById(int customerId, Connection con) {
+        try (PreparedStatement pstmt = con.prepareStatement("DELETE FROM ClubMember WHERE CustomerID = ?")) {
             pstmt.setInt(1, customerId);
-            int rows = pstmt.executeUpdate();
-            if (rows > 0) {
-                System.out.println("ClubMember with CustomerID " + customerId + " has been deactivated.");
-            } else {
-                System.out.println("No ClubMember found with CustomerID " + customerId);
-            }
+            pstmt.execute();
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
 
+    public void deleteStoreById(int storeId, Connection con) {
+        try (PreparedStatement pstmt = con.prepareStatement("DELETE FROM Store WHERE StoreID = ?")) {
+            pstmt.setInt(1, storeId);
+            pstmt.execute();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
 
+    public void deleteStaffById(int staffId, Connection con) {
+        try (PreparedStatement pstmt = con.prepareStatement("DELETE FROM Staff WHERE StaffID = ?")) {
+            pstmt.setInt(1, staffId);
+            pstmt.execute();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void deleteSupplierById(int supplierId, Connection con) {
+        try (PreparedStatement pstmt = con.prepareStatement("DELETE FROM Supplier WHERE SupplierID = ?")) {
+            pstmt.setInt(1, supplierId);
+            pstmt.execute();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void updateSupplierNameById(int supplierId, String newName, Connection con) {
+        try (PreparedStatement pstmt = con.prepareStatement("UPDATE Supplier SET Name = ? WHERE SupplierID = ?")) {
+            pstmt.setString(1, newName);
+            pstmt.setInt(2, supplierId);
+            pstmt.execute();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void updateStoreBranchById(int storeId, String newBranch, Connection con) {
+        try (PreparedStatement pstmt = con.prepareStatement("UPDATE Store SET Branch = ? WHERE StoreID = ?")) {
+            pstmt.setString(1, newBranch);
+            pstmt.setInt(2, storeId);
+            pstmt.execute();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void updateClubMemberLevelById(int customerId, String newLevel, Connection con) {
+        try (PreparedStatement pstmt = con.prepareStatement("UPDATE ClubMember SET MembershipLevel = ? WHERE CustomerID = ?")) {
+            pstmt.setString(1, newLevel);
+            pstmt.setInt(2, customerId);
+            pstmt.execute();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void updateStaffStoreIdById(int staffId, int newStoreId, Connection con) {
+        try (PreparedStatement pstmt = con.prepareStatement("UPDATE Staff SET StoreID = ? WHERE StaffID = ?")) {
+            pstmt.setInt(1, newStoreId);
+            pstmt.setInt(2, staffId);
+            pstmt.execute();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void cancelClubMemberMembership(int customerId, Connection con) {
+        try (PreparedStatement pstmt = con.prepareStatement("UPDATE ClubMember SET ActiveStatus = 0 WHERE CustomerID = ?")) {
+            pstmt.setInt(1, customerId);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
 }
-
-

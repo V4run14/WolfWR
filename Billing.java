@@ -41,7 +41,7 @@ public class Billing {
 
                 System.out.println("Welcome, " + designation);
               //Access Control Condition for Staff
-                if (!designation.equalsIgnoreCase("Billing Staff") || !designation.equalsIgnoreCase("Administrator")) {
+                if (!designation.equalsIgnoreCase("Billing Staff") && !designation.equalsIgnoreCase("Administrator")) {
                     System.out.println("Access for Billing Staff and Administrator only. Exiting");
                     return;
                 }
@@ -277,9 +277,6 @@ public class Billing {
             int productId = scanner.nextInt();
             scanner.nextLine();
 
-            System.out.print("Enter Valid Till Date of Existing Discount (YYYY-MM-DD): ");
-            String toDate = scanner.nextLine();
-
             System.out.print("Enter New Discount Percent: ");
             int discountPercent = scanner.nextInt();
             scanner.nextLine();
@@ -290,13 +287,13 @@ public class Billing {
             System.out.print("Enter New Valid Till Date (YYYY-MM-DD): ");
             String newToDate = scanner.nextLine();
 
-            String query = "UPDATE Discount SET DiscountPercent = ?, ValidFromDate = ?, ValidTillDate = ? WHERE ProductID = ? AND ValidTillDate = ?";
+            String query = "UPDATE Discount SET DiscountPercent = ?, ValidFromDate = ?, ValidTillDate = ? WHERE ProductID = ?";
             pstmt = connection.prepareStatement(query);
             pstmt.setInt(1, discountPercent);
             pstmt.setDate(2, Date.valueOf(fromDate));
             pstmt.setDate(3, Date.valueOf(newToDate));
             pstmt.setInt(4, productId);
-            pstmt.setDate(5, Date.valueOf(toDate));
+
             int rows = pstmt.executeUpdate();
             System.out.println(rows > 0 ? "Discount modified successfully." : "No matching discount found to modify.");
         } catch (Exception e) {
@@ -313,13 +310,10 @@ public class Billing {
             int productId = scanner.nextInt();
             scanner.nextLine();
 
-            System.out.print("Enter Valid Till Date of Discount to Delete (YYYY-MM-DD): ");
-            String toDate = scanner.nextLine();
-
-            String query = "DELETE FROM Discount WHERE ProductID = ? AND ValidTillDate = ?";
+            String query = "DELETE FROM Discount WHERE ProductID = ?";
             pstmt = connection.prepareStatement(query);
             pstmt.setInt(1, productId);
-            pstmt.setDate(2, Date.valueOf(toDate));
+
             int rows = pstmt.executeUpdate();
             System.out.println(rows > 0 ? "Discount deleted successfully." : "No matching discount found.");
         } catch (Exception e) {

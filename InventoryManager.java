@@ -1,6 +1,8 @@
 package WolfWR;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 import java.sql.*;
 import java.util.Scanner;
 
@@ -220,9 +222,19 @@ public class InventoryManager {
                 insertStmt.executeUpdate();
             }
 
-            printStoreInventoryFromConnection(conn);
+            printStoreInventoryFromConnection(conn,session);
+         // Step 7: Delete shipment records for added products
+            PreparedStatement deleteShipmentsStmt = conn.prepareStatement(
+                "DELETE FROM Shipments WHERE Dest_StoreID = ? AND Source_StoreID IS NULL AND ProductID = ?"
+            );
 
-            // Step 7: Confirm and commit
+            for (int[] item : shipmentList) {
+                deleteShipmentsStmt.setInt(1, storeId);
+                deleteShipmentsStmt.setInt(2, item[0]); // item[0] = ProductID
+                deleteShipmentsStmt.executeUpdate();
+            }
+
+            // Step 8: Confirm and commit
             if (getUserConfirmation("Add products to Inventory?")) {
                 conn.commit();
                 System.out.println("✅ Transaction committed: Products added from shipment.");
@@ -289,18 +301,19 @@ public class InventoryManager {
 
 
      // Displays current state of the StoreInventory table
-    public static void printStoreInventoryFromConnection(Connection conn) {
-        String sql = "SELECT * FROM StoreInventory ORDER BY StoreID, ProductID";
+    public static void printStoreInventoryFromConnection(Connection conn,UserSession session) {
+    	int storeId = session.getStoreId();  // Get the store ID from the current session
+        String sql = "SELECT * FROM StoreInventory WHERE StoreID = ? ORDER BY ProductID";
 
         try (
-            Statement stmt = conn.createStatement();
-            ResultSet rs = stmt.executeQuery(sql)
+        		PreparedStatement stmt = conn.prepareStatement(sql)
         ) {
+        	stmt.setInt(1, storeId);
+            ResultSet rs = stmt.executeQuery(sql);
             System.out.println("\n📦 StoreInventory (Current Session View):");
             System.out.println("StoreID | ProductID | Quantity");
             System.out.println("-------------------------------");
             while (rs.next()) {
-                int storeId = rs.getInt("StoreID");
                 int productId = rs.getInt("ProductID");
                 int quantity = rs.getInt("Quantity");
                 System.out.printf("%7d | %9d | %8d%n", storeId, productId, quantity);
@@ -324,34 +337,58 @@ public class InventoryManager {
 
         System.out.print("Enter Product ID to transfer: ");
         
-        List<Integer> eligibleProductIds = new ArrayList<>();
+       // List<Integer> eligibleProductIds = new ArrayList<>();
         try (
                 Connection conn = DriverManager.getConnection(jdbcURL, user, passwd)
             ) {
                 conn.setAutoCommit(false);
      // Step 1: Get eligible product IDs at destination (out of stock or expired)
-     String eligibleQuery =
-         "SELECT si.ProductID FROM StoreInventory si " +
-         "JOIN Merchandise m ON si.ProductID = m.ProductID " +
-         "WHERE si.StoreID = ? " +
-         "AND (si.Quantity <= 0 OR STR_TO_DATE(m.ExpireDate, '%m-%d-%Y') < CURDATE())";
+                Set<Integer> eligibleProductIds = new HashSet<>();
 
-     try (PreparedStatement eligibleStmt = conn.prepareStatement(eligibleQuery)) {
-         eligibleStmt.setInt(1, destStore);
-         ResultSet rs = eligibleStmt.executeQuery();
+             // 1. Products expired/out of stock at destination AND present at source
+             String queryExpiredOrZeroButPresent =
+                 "SELECT DISTINCT si.ProductID " +
+                 "FROM StoreInventory si " +
+                 "JOIN Merchandise m ON si.ProductID = m.ProductID " +
+                 "WHERE si.StoreID = ? " +
+                 "AND (si.Quantity <= 0 OR STR_TO_DATE(m.ExpireDate, '%m-%d-%Y') < CURDATE()) " +
+                 "AND EXISTS (SELECT 1 FROM StoreInventory src WHERE src.StoreID = ? AND src.ProductID = si.ProductID AND src.Quantity > 0)";
 
-         System.out.println("Eligible products for transfer (out of stock or expired):");
-         while (rs.next()) {
-             int pid = rs.getInt("ProductID");
-             eligibleProductIds.add(pid);
-             System.out.println(" - Product ID: " + pid);
-         }
-     }
+             try (PreparedStatement stmt = conn.prepareStatement(queryExpiredOrZeroButPresent)) {
+                 stmt.setInt(1, destStore);
+                 stmt.setInt(2, session.getStoreId());
+                 ResultSet rs = stmt.executeQuery();
+                 while (rs.next()) {
+                     eligibleProductIds.add(rs.getInt("ProductID"));
+                 }
+             }
 
-     if (eligibleProductIds.isEmpty()) {
-         System.out.println("❌ Destination store has no products eligible for transfer.");
-         return;
-     }
+             // 2. Products present in source but not at all in destination
+             String queryMissingAtDest =
+                 "SELECT DISTINCT src.ProductID " +
+                 "FROM StoreInventory src " +
+                 "WHERE src.StoreID = ? AND src.Quantity > 0 " +
+                 "AND NOT EXISTS (SELECT 1 FROM StoreInventory dst WHERE dst.StoreID = ? AND dst.ProductID = src.ProductID)";
+
+             try (PreparedStatement stmt = conn.prepareStatement(queryMissingAtDest)) {
+                 stmt.setInt(1, session.getStoreId());
+                 stmt.setInt(2, destStore);
+                 ResultSet rs = stmt.executeQuery();
+                 while (rs.next()) {
+                     eligibleProductIds.add(rs.getInt("ProductID"));
+                 }
+             }
+
+             if (eligibleProductIds.isEmpty()) {
+            	    System.out.println("❌ No eligible products available for transfer.");
+            	    return;
+            	}
+
+            	// Display eligible product IDs
+            	System.out.println("Eligible products for transfer:");
+            	for (int pid : eligibleProductIds) {
+            	    System.out.println(" - Product ID: " + pid);
+            	}
 
      // Step 2: Prompt user for valid product ID
      int productId = -1;
@@ -363,32 +400,31 @@ public class InventoryManager {
          }
          System.out.println("❗ Invalid choice. Please choose a Product ID from the eligible list.");
      }
+     int availableQty = 0;
 
-     // Step 3: Ask for quantity
-     System.out.print("Enter quantity to transfer: ");
+     String qtyQuery = "SELECT Quantity FROM StoreInventory WHERE StoreID = ? AND ProductID = ?";
+     try (PreparedStatement qtyStmt = conn.prepareStatement(qtyQuery)) {
+         qtyStmt.setInt(1,session.getStoreId());
+         qtyStmt.setInt(2, productId);
+         ResultSet qtyRs = qtyStmt.executeQuery();
+         if (qtyRs.next()) {
+             availableQty = qtyRs.getInt("Quantity");
+            // System.out.println("✅ Available quantity in your store: " + availableQty);
+         } else {
+             System.out.println("⚠️ Product not found in your inventory anymore.");
+             return;
+         }
+     }
+
+     // Step 3: Ask for quantity with context
+     System.out.print("Enter quantity to transfer (max " + availableQty + "): ");
+    
      int qty = Integer.parseInt(scanner.nextLine().trim());
 
         int sourceStore = session.getStoreId();
 
       
-            // Check if destination has product unexpired & in stock
-            String destStockCheck =
-                "SELECT 1 FROM StoreInventory si " +
-                "JOIN Merchandise m ON si.ProductID = m.ProductID " +
-                "WHERE si.StoreID = ? AND si.ProductID = ? " +
-                "AND si.Quantity > 0 AND (STR_TO_DATE(m.ExpireDate,'%m-%d-%Y') IS NULL OR STR_TO_DATE(m.ExpireDate, '%m-%d-%Y') >= CURDATE())";
-
-            try (PreparedStatement destStmt = conn.prepareStatement(destStockCheck)) {
-                destStmt.setInt(1, destStore);
-                destStmt.setInt(2, productId);
-
-                ResultSet rs = destStmt.executeQuery();
-                if (rs.next()) {
-                    System.out.println("⚠️ Destination store already has valid stock for this product.");
-                    return;
-                }
-            }
-
+           
             // Check if shipment exists for this transfer
             String shipmentCheck =
                 "SELECT 1 FROM Shipments " +
@@ -435,7 +471,17 @@ public class InventoryManager {
                 addStmt.setInt(3, qty);
                 addStmt.executeUpdate();
             }
+            //: Delete used shipment records
+            PreparedStatement deleteShipmentsStmt = conn.prepareStatement(
+                "DELETE FROM Shipments WHERE Dest_StoreID = ? AND Source_StoreID = ? AND ProductID = ?"
+            );
 
+            
+                deleteShipmentsStmt.setInt(1, destStore);
+                deleteShipmentsStmt.setInt(2, sourceStore);
+                deleteShipmentsStmt.setInt(3, productId);
+                deleteShipmentsStmt.executeUpdate();
+            
             if (getUserConfirmation("Transfer products")) {
                 conn.commit();
                 System.out.println("✅ Transaction committed: Transfer successful.");
@@ -496,7 +542,7 @@ public class InventoryManager {
 
             if (getUserConfirmation("Delete expired products")) {
                 conn.commit();
-                printStoreInventoryFromConnection(conn);
+                printStoreInventoryFromConnection(conn,session);
                 System.out.println("✅ Transaction committed: Deleted " + rowsDeleted + " expired product(s).");
             } else {
                 conn.rollback();

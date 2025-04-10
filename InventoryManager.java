@@ -157,7 +157,7 @@ public class InventoryManager {
 
             // Step 3: Prompt user to create shipments for missing ones
             for (int productId : missingShipmentProductIds) {
-                System.out.println("⚠️ No shipment found for ProductID " + productId);
+                System.out.println("️ No shipment found for ProductID " + productId);
                 System.out.print("Do you want to create a shipment for this product? (yes/no): ");
                 String response = scanner.nextLine().trim().toLowerCase();
 
@@ -187,7 +187,7 @@ public class InventoryManager {
             ResultSet eligibleShipments = fetchShipmentStmt.executeQuery();
 
             // Step 5: Display them to the user
-            System.out.printf("\n📦 Eligible Shipments for StoreID %d:\n", storeId);
+            System.out.printf("\n Eligible Shipments for StoreID %d:\n", storeId);
             System.out.println("+------------+------------+-----------+----------+");
             System.out.printf("| %-10s | %-10s | %-9s | %-8s |\n", "ShipmentID", "SupplierID", "ProductID", "Quantity");
             System.out.println("+------------+------------+-----------+----------+");
@@ -205,7 +205,7 @@ public class InventoryManager {
             System.out.println("+------------+------------+-----------+----------+");
 
             if (shipmentList.isEmpty()) {
-                System.out.println("⚠️ No eligible products to add even after checking new shipments.");
+                System.out.println("️ No eligible products to add even after checking new shipments.");
                 return;
             }
 
@@ -237,10 +237,10 @@ public class InventoryManager {
             // Step 8: Confirm and commit
             if (getUserConfirmation("Add products to Inventory?")) {
                 conn.commit();
-                System.out.println("✅ Transaction committed: Products added from shipment.");
+                System.out.println(" Transaction committed: Products added from shipment.");
             } else {
                 conn.rollback();
-                System.out.println("❌ Transaction rolled back.");
+                System.out.println(" Transaction rolled back.");
             }
 
         } catch (SQLException e) {
@@ -288,9 +288,9 @@ public class InventoryManager {
 
             int rows = pstmt.executeUpdate();
             if (rows > 0) {
-                System.out.println("✅ Shipment created successfully.");
+                System.out.println(" Shipment created successfully.");
             } else {
-                System.out.println("❌ Shipment creation failed.");
+                System.out.println(" Shipment creation failed.");
             }
 
         } catch (SQLException e) {
@@ -310,7 +310,7 @@ public class InventoryManager {
         ) {
         	stmt.setInt(1, storeId);
             ResultSet rs = stmt.executeQuery(sql);
-            System.out.println("\n📦 StoreInventory (Current Session View):");
+            System.out.println("\n StoreInventory (Current Session View):");
             System.out.println("StoreID | ProductID | Quantity");
             System.out.println("-------------------------------");
             while (rs.next()) {
@@ -340,8 +340,8 @@ public class InventoryManager {
         try (
                 Connection conn = DriverManager.getConnection(jdbcURL, user, passwd)
             ) {
-                conn.setAutoCommit(false);
-     // Step 1: Get eligible product IDs at destination (out of stock or expired)
+                conn.setAutoCommit(false); //Begin TRANSACTION
+           // Step 1: Get eligible product IDs at destination store (out of stock or expired)
                 Set<Integer> eligibleProductIds = new HashSet<>();
 
              // 1. Products expired/out of stock at destination AND present at source
@@ -379,7 +379,7 @@ public class InventoryManager {
              }
 
              if (eligibleProductIds.isEmpty()) {
-            	    System.out.println("❌ No eligible products available for transfer.");
+            	    System.out.println(" No eligible products available for transfer.");
             	    return;
             	}
 
@@ -397,7 +397,7 @@ public class InventoryManager {
          if (eligibleProductIds.contains(productId)) {
              break;
          }
-         System.out.println("❗ Invalid choice. Please choose a Product ID from the eligible list.");
+         System.out.println(" Invalid choice. Please choose a Product ID from the eligible list.");
      }
      int availableQty = 0;
 
@@ -408,21 +408,15 @@ public class InventoryManager {
          ResultSet qtyRs = qtyStmt.executeQuery();
          if (qtyRs.next()) {
              availableQty = qtyRs.getInt("Quantity");
-            // System.out.println("✅ Available quantity in your store: " + availableQty);
          } else {
-             System.out.println("⚠️ Product not found in your inventory anymore.");
+             System.out.println(" Product not found in your inventory anymore.");
              return;
          }
      }
 
      // Step 3: Ask for quantity with context
-     int qty = getValidQuantityInput(scanner, availableQty);
-
-
+     	int qty = getValidQuantityInput(scanner, availableQty);
         int sourceStore = session.getStoreId();
-
-      
-           
             // Check if shipment exists for this transfer
             String shipmentCheck =
                 "SELECT 1 FROM Shipments " +
@@ -435,7 +429,7 @@ public class InventoryManager {
 
                 ResultSet shipmentRs = shipmentStmt.executeQuery();
                 if (!shipmentRs.next()) {
-                    System.out.println("⚠️ No shipment record found for this transfer.");
+                    System.out.println(" No shipment record found for this transfer.");
                     System.out.print("Do you want to create one now? (yes/no): ");
                     String response = scanner.nextLine().trim().toLowerCase();
                     if (response.equals("yes")) {
@@ -482,10 +476,10 @@ public class InventoryManager {
             
             if (getUserConfirmation("Transfer products")) {
                 conn.commit();
-                System.out.println("✅ Transaction committed: Transfer successful.");
+                System.out.println("Transaction committed: Transfer successful.");
             } else {
                 conn.rollback();
-                System.out.println("❌ Transaction rolled back.");
+                System.out.println(" Transaction rolled back.");
             }
 
         } catch (SQLException e) {
@@ -531,7 +525,7 @@ public class InventoryManager {
                    }
 
                    if (!found) {
-                       System.out.println("✅ No expired products in inventory.");
+                       System.out.println(" No expired products in inventory.");
                        return;
                    }
                }
@@ -541,10 +535,10 @@ public class InventoryManager {
             if (getUserConfirmation("Delete expired products")) {
                 conn.commit();
                 printStoreInventoryFromConnection(conn,session);
-                System.out.println("✅ Transaction committed: Deleted " + rowsDeleted + " expired product(s).");
+                System.out.println("Transaction committed: Deleted " + rowsDeleted + " expired product(s).");
             } else {
                 conn.rollback();
-                System.out.println("❌ Transaction rolled back: Expired products not deleted.");
+                System.out.println(" Transaction rolled back: Expired products not deleted.");
             }
 
         } catch (SQLException e) {
@@ -568,7 +562,7 @@ public class InventoryManager {
             PreparedStatement pstmt = conn.prepareStatement("SELECT * FROM Discount WHERE DiscountPercent > 0");
             ResultSet rs = pstmt.executeQuery()
         ) {
-            System.out.println("✅ Discounts goods:");
+            System.out.println(" Discounts goods:");
             while (rs.next()) {
                 int id = rs.getInt("ProductID");
                 int percent = rs.getInt("DiscountPercent");
@@ -587,7 +581,7 @@ public class InventoryManager {
         if (conn != null) {
             try {
                 conn.rollback();
-                System.out.println("❌ Rolled back due to error.");
+                System.out.println(" Rolled back due to error.");
             } catch (SQLException e) {
                 e.printStackTrace();
             }
@@ -596,7 +590,7 @@ public class InventoryManager {
     // Asks user to confirm an action with yes/no
     static boolean getUserConfirmation(String actionName) {
         Scanner sc = new Scanner(System.in);
-        System.out.print("🟡 Confirm commit for \"" + actionName + "\"? (yes/no): ");
+        System.out.print(" Confirm commit for \"" + actionName + "\"? (yes/no): ");
         String input = sc.nextLine();
        
     
@@ -613,10 +607,10 @@ public class InventoryManager {
                 if (qty > 0 && qty <= maxQty) {
                     return qty;
                 } else {
-                    System.out.println("❌ Please enter a number between 1 and " + maxQty + ".");
+                    System.out.println(" Please enter a number between 1 and " + maxQty + ".");
                 }
             } catch (NumberFormatException e) {
-                System.out.println("❌ Invalid input. Please enter a valid number.");
+                System.out.println(" Invalid input. Please enter a valid number.");
             }
         }
     }

@@ -1,3 +1,5 @@
+// UserInteraction.java - Handles all user input and interaction logic with the system
+
 package WolfWR;
 
 import java.sql.Connection;
@@ -10,14 +12,15 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Scanner;
 import WolfWR.models.*;
-
+// UserInteraction.java - Handles all user input and interaction logic with the system
 public class UserInteraction {
     public static void main(String[] args) {
+        // JDBC connection details
         String jdbcURL = "jdbc:mariadb://classdb2.csc.ncsu.edu:3306/vvarath";
         Connection con = null;
         String user = "vvarath";
         String passwd = "dbmsproj2025";
-
+        // Try to connect to the database
         try {
             Class.forName("org.mariadb.jdbc.Driver");
             con = DriverManager.getConnection(jdbcURL, user, passwd);
@@ -27,20 +30,20 @@ public class UserInteraction {
 
         Queries query = new Queries();
         Scanner scanner = new Scanner(System.in);
-
+        // Prompt for login credentials
         System.out.println("Enter Email: ");
         String loginemail = scanner.nextLine();
         System.out.println("Enter Password: ");
         String loginpassword = scanner.nextLine();
-
+        // Authenticate and create a user session
         UserSession session = query.loginAndGetSession(loginemail, loginpassword, con);
         if (session == null) {
             System.out.println("Login failed. Exiting...");
             return;
         }
 
-        String title = session.getJobTitle();
-
+        String title = session.getJobTitle(); // get user's role title
+        // Main menu options
         String[] menuOptions = {
                 "Insert Store",
                 "Insert ClubMember",
@@ -59,7 +62,7 @@ public class UserInteraction {
         };
 
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
-
+        // Main user interaction loop
         while (true) {
             System.out.println("\nMenu----------");
             for (int i = 0; i < menuOptions.length; i++) {
@@ -85,9 +88,10 @@ public class UserInteraction {
                 System.out.println("Logging out...");
                 break;
             }
-
+            // Execute selected functionality
             switch (selectedOption) {
                 case "Insert Supplier":
+                    // Access check
                     if (title.equals("Administrator") || title.equals("Warehouse Operator") || title.equals("Manager")) {
                         System.out.println("Enter Supplier Name: ");
                         String name = scanner.nextLine();
@@ -164,7 +168,7 @@ public class UserInteraction {
                             int status = Integer.parseInt(scanner.nextLine());
                             System.out.println("Enter Last Paid (yyyy-MM-dd): ");
                             Date lastPaid = formatter.parse(scanner.nextLine());
-
+                            // Use logged-in user's store and staff IDs
                             int staffId = getStaffId(session.getName(), con);
                             ClubMember cmb = new ClubMember(membShipLevel, address, email, phone, firstName, lastName, signUpDate, dueDate, status, lastPaid, session.getStoreId(), staffId);
                             query.singleInsertClubMemb(cmb, con);
@@ -173,6 +177,7 @@ public class UserInteraction {
                         }
                     }
                     break;
+                // All Delete/Update actions below use IDs rather than names
                 case "Delete Club Member":
                     if (title.equals("Registration Operator") || title.equals("Administrator")) {
                         System.out.println("Enter Customer ID: ");
@@ -255,6 +260,9 @@ public class UserInteraction {
         }
     }
 
+    /**
+     * Helper function to retrieve StaffID from Staff name
+     */
     private static int getStaffId(String staffName, Connection conn) throws SQLException {
         String sql = "SELECT StaffID FROM Staff WHERE Name = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {

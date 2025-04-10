@@ -1,3 +1,5 @@
+// Queries.java - Handles all database access and SQL operations
+
 package WolfWR;
 
 import java.sql.Connection;
@@ -8,6 +10,10 @@ import WolfWR.models.*;
 
 public class Queries {
 
+    /**
+     * Authenticates the user by email and password and returns a UserSession object.
+     * Used at login to identify user permissions and store context.
+     */
     public UserSession loginAndGetSession(String email, String password, Connection con) {
         String query = "SELECT Name, JobTitle, StoreID FROM Staff WHERE Email=? AND Password=?";
         try (PreparedStatement stmt = con.prepareStatement(query)) {
@@ -102,6 +108,9 @@ public class Queries {
         }
 
     }
+    /**
+     * Inserts a new ClubMember into the database
+     */
     public void singleInsertClubMemb(ClubMember cm, Connection con) {
         try (PreparedStatement pstmt = con.prepareStatement(
                 "INSERT INTO ClubMember (MembershipLevel, Address, Email, PhoneNumber, Fname, Lname, SignupDate, DueDate, ActiveStatus, LastPaid, StoreID, SignupStaffID) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)")) {
@@ -124,7 +133,7 @@ public class Queries {
             e.printStackTrace();
         }
     }
-
+    /** Deletes a ClubMember by their CustomerID */
     public void deleteClubMembById(int customerId, Connection con) {
         try (PreparedStatement pstmt = con.prepareStatement("DELETE FROM ClubMember WHERE CustomerID = ?")) {
             pstmt.setInt(1, customerId);
@@ -133,7 +142,7 @@ public class Queries {
             e.printStackTrace();
         }
     }
-
+    /** Deletes a Store by StoreID */
     public void deleteStoreById(int storeId, Connection con) {
         try (PreparedStatement pstmt = con.prepareStatement("DELETE FROM Store WHERE StoreID = ?")) {
             pstmt.setInt(1, storeId);
@@ -142,7 +151,7 @@ public class Queries {
             e.printStackTrace();
         }
     }
-
+    /** Deletes a Staff member by their StaffID */
     public void deleteStaffById(int staffId, Connection con) {
         try (PreparedStatement pstmt = con.prepareStatement("DELETE FROM Staff WHERE StaffID = ?")) {
             pstmt.setInt(1, staffId);
@@ -151,7 +160,7 @@ public class Queries {
             e.printStackTrace();
         }
     }
-
+    /** Deletes a Supplier by their SupplierID */
     public void deleteSupplierById(int supplierId, Connection con) {
         try (PreparedStatement pstmt = con.prepareStatement("DELETE FROM Supplier WHERE SupplierID = ?")) {
             pstmt.setInt(1, supplierId);
@@ -160,7 +169,7 @@ public class Queries {
             e.printStackTrace();
         }
     }
-
+    /** Updates a Supplier's name using their SupplierID */
     public void updateSupplierNameById(int supplierId, String newName, Connection con) {
         try (PreparedStatement pstmt = con.prepareStatement("UPDATE Supplier SET Name = ? WHERE SupplierID = ?")) {
             pstmt.setString(1, newName);
@@ -170,7 +179,7 @@ public class Queries {
             e.printStackTrace();
         }
     }
-
+    /** Updates a Store's branch name by StoreID */
     public void updateStoreBranchById(int storeId, String newBranch, Connection con) {
         try (PreparedStatement pstmt = con.prepareStatement("UPDATE Store SET Branch = ? WHERE StoreID = ?")) {
             pstmt.setString(1, newBranch);
@@ -180,7 +189,7 @@ public class Queries {
             e.printStackTrace();
         }
     }
-
+    /** Updates a ClubMember's membership level by CustomerID */
     public void updateClubMemberLevelById(int customerId, String newLevel, Connection con) {
         try (PreparedStatement pstmt = con.prepareStatement("UPDATE ClubMember SET MembershipLevel = ? WHERE CustomerID = ?")) {
             pstmt.setString(1, newLevel);
@@ -190,7 +199,7 @@ public class Queries {
             e.printStackTrace();
         }
     }
-
+    /** Updates a Staff's StoreID by StaffID */
     public void updateStaffStoreIdById(int staffId, int newStoreId, Connection con) {
         try (PreparedStatement pstmt = con.prepareStatement("UPDATE Staff SET StoreID = ? WHERE StaffID = ?")) {
             pstmt.setInt(1, newStoreId);
@@ -201,6 +210,7 @@ public class Queries {
         }
     }
 
+    /** Cancels a ClubMember's membership by setting ActiveStatus to 0 */
     public void cancelClubMemberMembership(int customerId, Connection con) {
         try (PreparedStatement pstmt = con.prepareStatement("UPDATE ClubMember SET ActiveStatus = 0 WHERE CustomerID = ?")) {
             pstmt.setInt(1, customerId);
